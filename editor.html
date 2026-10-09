@@ -1,0 +1,1911 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Galería Virtual Nebulosa</title>
+  
+  <!-- Fuente oficial Poppins -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
+
+  <style>
+    /* CURSOR DE MANITA ABIERTA / CERRADA PARA ARRASTRE */
+    html, body, canvas.a-canvas, a-scene {
+      cursor: grab !important;
+      cursor: -webkit-grab !important;
+      user-select: none;
+    }
+    body:active, canvas.a-canvas:active, a-scene:active {
+      cursor: grabbing !important;
+      cursor: -webkit-grabbing !important;
+    }
+
+    /* MODAL DE INFORMACIÓN ESTILO ARTSTEPS / NEBULOSA */
+    #artwork-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 8, 18, 0.65);
+      backdrop-filter: blur(8px);
+      z-index: 10000000;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    #artwork-modal {
+      background: linear-gradient(145deg, rgba(28, 20, 48, 0.95), rgba(16, 12, 28, 0.95));
+      border: 1px solid rgba(192, 132, 252, 0.35);
+      border-radius: 20px;
+      padding: 28px 24px 24px;
+      max-width: 440px;
+      width: 100%;
+      color: #ffffff;
+      font-family: 'Poppins', sans-serif;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(168, 85, 247, 0.25);
+      position: relative;
+      animation: modalFadeIn 0.22s ease-out;
+      user-select: text;
+      cursor: default;
+    }
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.92) translateY(12px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    #artwork-modal-close {
+      position: absolute;
+      top: 14px;
+      right: 16px;
+      width: 32px;
+      height: 32px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      color: #e9d5ff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    #artwork-modal-close:hover {
+      background: rgba(239, 68, 68, 0.3);
+      color: #ffffff;
+      border-color: #ef4444;
+    }
+    #artwork-modal-badge {
+      display: inline-block;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #c084fc;
+      background: rgba(192, 132, 252, 0.15);
+      border: 1px solid rgba(192, 132, 252, 0.3);
+      border-radius: 12px;
+      padding: 3px 10px;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+    #artwork-modal-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 0 0 10px 0;
+      color: #ffffff;
+      line-height: 1.3;
+    }
+    #artwork-modal-desc {
+      font-size: 13px;
+      line-height: 1.6;
+      color: #d8b4fe;
+      margin: 0 0 20px 0;
+    }
+    #artwork-modal-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      box-sizing: border-box;
+      background: linear-gradient(135deg, #7c3aed, #a855f7);
+      color: #ffffff;
+      text-decoration: none;
+      padding: 11px 18px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      box-shadow: 0 6px 18px rgba(124, 58, 237, 0.45);
+    }
+    #artwork-modal-link:hover {
+      background: linear-gradient(135deg, #6d28d9, #9333ea);
+      transform: translateY(-1px);
+    }
+
+    /* MODAL DE REPRODUCTOR DE VIDEO YOUTUBE CON BOTÓN 'X' SIEMPRE VISIBLE */
+    #video-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(8, 6, 16, 0.88);
+      backdrop-filter: blur(12px);
+      z-index: 10000001;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+    #video-modal-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 860px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 10px;
+    }
+    #video-modal-close {
+      position: relative;
+      background: rgba(28, 20, 48, 0.95);
+      border: 1.5px solid rgba(192, 132, 252, 0.6);
+      border-radius: 50%;
+      width: 42px;
+      height: 42px;
+      color: #ffffff;
+      font-size: 20px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6), 0 0 15px rgba(168, 85, 247, 0.5);
+      transition: all 0.15s ease;
+      z-index: 10000003;
+    }
+    #video-modal-close:hover {
+      background: #ef4444;
+      border-color: #ef4444;
+      transform: scale(1.1);
+    }
+    #video-modal-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #000000;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1.5px solid rgba(192, 132, 252, 0.45);
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(168, 85, 247, 0.4);
+      animation: modalFadeIn 0.22s ease-out;
+    }
+    #video-modal-container iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+    /* PANEL DE INSTRUCCIONES Y FLECHAS DE MOVIMIENTO EN PANTALLA */
+    #nav-guide {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      right: 20px;
+      background: rgba(14, 14, 20, 0.90);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 16px;
+      padding: 16px 14px;
+      color: #ffffff;
+      font-family: 'Poppins', sans-serif;
+      z-index: 9999999 !important;
+      box-shadow: 0 12px 36px rgba(0,0,0,0.6);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      user-select: none;
+      cursor: default !important;
+    }
+
+    .guide-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: #9c9cb8;
+      font-weight: 700;
+    }
+
+    .arrow-pad {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+    .arrow-row {
+      display: flex;
+      gap: 5px;
+    }
+    .key-cap {
+      width: 34px;
+      height: 34px;
+      background: #252535;
+      border: 1px solid #404058;
+      border-bottom: 3px solid #161622;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: 'Poppins', sans-serif;
+      color: #f5f5fa;
+      cursor: pointer !important;
+      transition: all 0.1s ease;
+    }
+    .key-cap:hover {
+      background: #3b3b54;
+      border-color: #6366f1;
+    }
+    .key-cap:active {
+      transform: translateY(2px);
+      border-bottom-width: 1px;
+    }
+
+    .guide-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-size: 11px;
+      text-align: center;
+      color: #dcdcfa;
+      gap: 6px;
+    }
+
+    .mouse-icon {
+      width: 22px;
+      height: 30px;
+      border: 2px solid #ffffff;
+      border-radius: 13px;
+      position: relative;
+    }
+    .mouse-icon::after {
+      content: '';
+      position: absolute;
+      top: 5px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      height: 7px;
+      background: #ffffff;
+      border-radius: 2px;
+    }
+
+    /* BOTÓN DIRECTO PARA ABRIR EL EDITOR 3D */
+    .btn-editor {
+      background: linear-gradient(135deg, #7c3aed, #a855f7);
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: 'Poppins', sans-serif;
+      cursor: pointer !important;
+      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+      transition: all 0.2s ease;
+    }
+    .btn-editor:hover {
+      background: linear-gradient(135deg, #6d28d9, #9333ea);
+      transform: scale(1.04);
+    }
+
+    /* PESTAÑAS FLOTANTES DE FLECHAS PARA MINIMIZAR PANELES */
+    .toggle-panel-btn {
+      position: fixed !important;
+      top: 50% !important;
+      transform: translateY(-50%) !important;
+      background: #7c3aed !important;
+      color: #ffffff;
+      border: 2px solid rgba(255, 255, 255, 0.5) !important;
+      border-radius: 8px !important;
+      width: 26px !important;
+      height: 52px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      cursor: pointer !important;
+      z-index: 99999999 !important;
+      font-size: 15px !important;
+      font-weight: 900 !important;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6) !important;
+      transition: left 0.2s ease, right 0.2s ease, transform 0.15s ease !important;
+      user-select: none !important;
+    }
+    .toggle-panel-btn:hover {
+      background: #9333ea !important;
+      transform: translateY(-50%) scale(1.08) !important;
+    }
+
+    /* BOTÓN SUPERIOR DE GUARDADO */
+    #custom-save-bar {
+      position: fixed !important;
+      top: 6px !important;
+      left: 175px !important;
+      z-index: 99999999 !important;
+      display: flex !important;
+      align-items: center !important;
+      gap: 10px !important;
+    }
+    .btn-guardar-real {
+      background: #10b981 !important;
+      color: #ffffff !important;
+      border: none !important;
+      border-radius: 6px !important;
+      padding: 6px 14px !important;
+      font-size: 12px !important;
+      font-weight: 700 !important;
+      font-family: 'Poppins', sans-serif !important;
+      cursor: pointer !important;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.5) !important;
+      transition: all 0.2s ease !important;
+    }
+    .btn-guardar-real:hover {
+      background: #059669 !important;
+      transform: scale(1.04) !important;
+    }
+  </style>
+
+  <script>
+    function activarEditorVisual() {
+      if (window.AFRAME && window.AFRAME.INSPECTOR) {
+        window.AFRAME.INSPECTOR.open();
+      } else {
+        window.postMessage('INJECT_AFRAME_INSPECTOR', '*');
+      }
+    }
+
+    function abrirModalObra(titulo, desc, link) {
+      if (document.querySelector('#aframeInspector, [data-aframe-inspector]')) return;
+      document.getElementById('artwork-modal-title').textContent = titulo || 'Obra';
+      document.getElementById('artwork-modal-desc').textContent = desc || 'Descripción disponible próximamente.';
+      const btnLink = document.getElementById('artwork-modal-link');
+      btnLink.href = link || 'https://galerianebulosa.com/obras-destacadas/';
+      btnLink.target = '_blank';
+      document.getElementById('artwork-modal-overlay').style.display = 'flex';
+    }
+
+    function cerrarModalObra() {
+      document.getElementById('artwork-modal-overlay').style.display = 'none';
+    }
+
+    function abrirModalVideo(videoId) {
+      if (document.querySelector('#aframeInspector, [data-aframe-inspector]')) return;
+      const iframe = document.getElementById('youtube-player-frame');
+      iframe.src = `https://www.youtube.com/embed/${videoId || 'GZRF6dSq7tk'}?autoplay=1&rel=0`;
+      document.getElementById('video-modal-overlay').style.display = 'flex';
+    }
+
+    function cerrarModalVideo() {
+      const iframe = document.getElementById('youtube-player-frame');
+      iframe.src = '';
+      document.getElementById('video-modal-overlay').style.display = 'none';
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        cerrarModalVideo();
+        cerrarModalObra();
+      }
+    });
+
+    function moverConBoton(tecla) {
+      const cameraRig = document.querySelector('#rig');
+      if (cameraRig) {
+        const rot = cameraRig.getAttribute('rotation') || { y: 0 };
+        const rad = THREE.MathUtils.degToRad(rot.y);
+        const paso = 0.8;
+        let dx = 0, dz = 0;
+
+        if (tecla === 'ArrowUp') {
+          dx = -Math.sin(rad) * paso;
+          dz = -Math.cos(rad) * paso;
+        } else if (tecla === 'ArrowDown') {
+          dx = Math.sin(rad) * paso;
+          dz = Math.cos(rad) * paso;
+        } else if (tecla === 'ArrowLeft') {
+          dx = -Math.cos(rad) * paso;
+          dz = Math.sin(rad) * paso;
+        } else if (tecla === 'ArrowRight') {
+          dx = Math.cos(rad) * paso;
+          dz = -Math.sin(rad) * paso;
+        }
+
+        const p = cameraRig.getAttribute('position');
+        cameraRig.setAttribute('position', { x: p.x + dx, y: p.y, z: p.z + dz });
+      }
+
+      if (window.AFRAME && window.AFRAME.INSPECTOR && window.AFRAME.INSPECTOR.camera) {
+        const cam = window.AFRAME.INSPECTOR.camera;
+        const pasoInspector = 0.8;
+        if (tecla === 'ArrowUp') cam.translateZ(-pasoInspector);
+        if (tecla === 'ArrowDown') cam.translateZ(pasoInspector);
+        if (tecla === 'ArrowLeft') cam.translateX(-pasoInspector);
+        if (tecla === 'ArrowRight') cam.translateX(pasoInspector);
+      }
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: tecla, code: tecla, bubbles: true }));
+    }
+
+    setInterval(() => {
+      const leftSidebar = document.querySelector('#scenegraph, .scenegraph');
+      const rightSidebar = document.querySelector('#rightPanel, #sidebar, .components');
+      const inspectorActivo = document.querySelector('#aframeInspector, [data-aframe-inspector]');
+
+      if (leftSidebar || rightSidebar || inspectorActivo) {
+        const iconSave = document.querySelector('.fa-save');
+        if (iconSave && !iconSave.dataset.customized) {
+          iconSave.dataset.customized = "true";
+          iconSave.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            guardarHtmlActualizado();
+          };
+        }
+
+        if (!document.getElementById('custom-save-bar')) {
+          const bar = document.createElement('div');
+          bar.id = 'custom-save-bar';
+          bar.innerHTML = `<button class="btn-guardar-real" onclick="guardarHtmlActualizado()">💾 GUARDAR CAMBIOS</button>`;
+          document.body.appendChild(bar);
+        }
+
+        if (leftSidebar && !document.getElementById('btn-min-left')) {
+          const btnL = document.createElement('div');
+          btnL.id = 'btn-min-left';
+          btnL.className = 'toggle-panel-btn';
+          btnL.style.left = '232px';
+          btnL.innerHTML = '◀';
+          btnL.title = 'Minimizar / Mostrar panel izquierdo';
+          let ocultoL = false;
+          btnL.onclick = () => {
+            ocultoL = !ocultoL;
+            leftSidebar.style.setProperty('display', ocultoL ? 'none' : 'flex', 'important');
+            btnL.style.left = ocultoL ? '4px' : '232px';
+            btnL.innerHTML = ocultoL ? '▶' : '◀';
+          };
+          document.body.appendChild(btnL);
+        }
+
+        if (rightSidebar && !document.getElementById('btn-min-right')) {
+          const btnR = document.createElement('div');
+          btnR.id = 'btn-min-right';
+          btnR.className = 'toggle-panel-btn';
+          btnR.style.right = '332px';
+          btnR.innerHTML = '▶';
+          btnR.title = 'Minimizar / Mostrar panel derecho';
+          let ocultoR = false;
+          btnR.onclick = () => {
+            ocultoR = !ocultoR;
+            rightSidebar.style.setProperty('display', ocultoR ? 'none' : 'flex', 'important');
+            btnR.style.right = ocultoR ? '4px' : '332px';
+            btnR.innerHTML = ocultoR ? '◀' : '▶';
+          };
+          document.body.appendChild(btnR);
+        }
+      }
+    }, 600);
+
+    // FUNCIÓN DE GUARDADO DIRECTO DESDE EL MOTOR 3D
+    function guardarHtmlActualizado() {
+      let reporte = "Coordenadas guardadas:\n";
+
+      const elementosAGuardar = [
+        'rotulo-exterior',
+        'grupo-1-cuadro-honor', 'grupo-1-obra-1', 'grupo-1-obra-2', 'grupo-1-obra-3',
+        'obra-4', 'obra-5', 'obra-6',
+        'grupo-3-obra-7', 'grupo-3-obra-8', 'grupo-3-obra-9',
+        'grupo-4-obra-10', 'grupo-4-obra-11', 'grupo-4-obra-12', 'grupo-4-obra-13', 'grupo-4-obra-14', 'grupo-4-obra-15', 'grupo-4-obra-16',
+        'grupo-5-obra-17', 'grupo-5-obra-18', 'grupo-5-obra-19', 'grupo-5-obra-20', 'grupo-5-obra-21', 'grupo-5-obra-22', 'grupo-5-obra-23', 'grupo-5-obra-24', 'grupo-5-obra-25',
+        'grupo-5-obra-26', 'grupo-5-obra-27', 'grupo-5-obra-28', 'grupo-5-obra-29', 'grupo-5-obra-30',
+        'grupo-6-obra-31', 'grupo-6-obra-32', 'grupo-6-obra-33',
+        'grupo-7-obra-34', 'grupo-7-obra-35', 'grupo-7-obra-36', 'grupo-7-obra-37',
+        'grupo-7-obra-38', 'grupo-7-obra-39', 'grupo-7-obra-40', 'grupo-7-obra-41',
+        'grupo-7-obra-42', 'grupo-7-obra-43', 'grupo-7-obra-44', 'grupo-7-obra-45',
+        'grupo-7-obra-46', 'grupo-7-obra-47', 'grupo-7-obra-48',
+        'grupo-8-obra-49', 'grupo-8-obra-50', 'grupo-8-obra-51', 'grupo-8-obra-52',
+        'grupo-8-obra-53', 'grupo-8-obra-54', 'grupo-8-obra-55', 'grupo-8-obra-56',
+        'grupo-8-obra-57', 'grupo-8-obra-58',
+        'grupo-9-obra-59', 'grupo-9-obra-60', 'grupo-9-obra-61', 'pantalla-video-presentacion'
+      ];
+
+      elementosAGuardar.forEach(id => {
+        const entidad = document.getElementById(id);
+        if (entidad) {
+          let x, y, z;
+          if (entidad.object3D) {
+            x = entidad.object3D.position.x;
+            y = entidad.object3D.position.y;
+            z = entidad.object3D.position.z;
+          } else {
+            const p = entidad.getAttribute('position');
+            x = p.x; y = p.y; z = p.z;
+          }
+
+          const posFinal = `${x.toFixed(2)} ${y.toFixed(2)} ${z.toFixed(2)}`;
+          entidad.setAttribute('position', posFinal);
+          reporte += `• ${id}: ${posFinal}\n`;
+        }
+      });
+
+      const clonDoc = document.documentElement.cloneNode(true);
+      const elementosParaRemover = clonDoc.querySelectorAll(
+        '#aframeInspector, #custom-save-bar, #btn-min-left, #btn-min-right, .inspector-toggle-btn, #btn-guardar-inspector, [data-aframe-inspector]'
+      );
+      elementosParaRemover.forEach(el => el.remove());
+
+      clonDoc.classList.remove('a-fullscreen');
+      const bodyClon = clonDoc.querySelector('body');
+      if (bodyClon) bodyClon.className = '';
+
+      const htmlCompleto = '<!DOCTYPE html>\n' + clonDoc.outerHTML;
+      const blob = new Blob([htmlCompleto], { type: 'text/html;charset=utf-8' });
+      const enlace = document.createElement('a');
+      enlace.href = URL.createObjectURL(blob);
+      enlace.download = 'index.html';
+      enlace.click();
+
+      alert("✅ ¡Cambios guardados con éxito!\n\n" + reporte + "\nReemplaza este archivo en GitHub.");
+    }
+
+    // COMPONENTE DE INTERACCIÓN POR CLIC DIRECTO
+    AFRAME.registerComponent('obra-interactiva', {
+      schema: {
+        titulo: { type: 'string', default: '' },
+        desc: { type: 'string', default: '' },
+        link: { type: 'string', default: 'https://galerianebulosa.com/obras-destacadas/' }
+      },
+      init: function () {
+        const el = this.el;
+        const data = this.data;
+
+        const vincularClic = (target) => {
+          target.classList.add('clickable');
+          target.addEventListener('click', (e) => {
+            e.stopPropagation();
+            abrirModalObra(data.titulo, data.desc, data.link);
+          });
+        };
+
+        vincularClic(el);
+        el.querySelectorAll('a-plane, a-box').forEach(vincularClic);
+      }
+    });
+
+    // COMPONENTE DE PANTALLA DE VIDEO YOUTUBE EN 3D
+    AFRAME.registerComponent('pantalla-youtube', {
+      schema: {
+        videoId: { type: 'string', default: 'GZRF6dSq7tk' },
+        titulo: { type: 'string', default: 'Presentación Galería Nebulosa' }
+      },
+      init: function () {
+        const el = this.el;
+        const data = this.data;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 1280;
+        canvas.height = 720;
+        const ctx = canvas.getContext('2d');
+
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = `https://img.youtube.com/vi/${data.videoId}/hqdefault.jpg`;
+
+        const dibujarPreview = () => {
+          if (img.complete && img.naturalWidth !== 0) {
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          } else {
+            const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            grad.addColorStop(0, '#1c1032');
+            grad.addColorStop(1, '#0b0817');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+          }
+
+          // Overlay semitransparente cósmico
+          ctx.fillStyle = 'rgba(15, 10, 30, 0.4)';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          // Botón Play estilo Artsteps
+          ctx.fillStyle = 'rgba(168, 85, 247, 0.88)';
+          ctx.beginPath();
+          ctx.arc(canvas.width / 2, canvas.height / 2, 75, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.moveTo(canvas.width / 2 - 25, canvas.height / 2 - 40);
+          ctx.lineTo(canvas.width / 2 + 45, canvas.height / 2);
+          ctx.lineTo(canvas.width / 2 - 25, canvas.height / 2 + 40);
+          ctx.closePath();
+          ctx.fill();
+
+          // Barra inferior de título
+          ctx.fillStyle = 'rgba(10, 8, 20, 0.75)';
+          ctx.fillRect(0, canvas.height - 80, canvas.width, 80);
+
+          ctx.fillStyle = '#ffffff';
+          ctx.font = "bold 32px 'Poppins', sans-serif";
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          ctx.fillText("▶ " + data.titulo, 35, canvas.height - 40);
+
+          const texture = new THREE.CanvasTexture(canvas);
+          texture.colorSpace = THREE.SRGBColorSpace;
+          const mesh = el.getObject3D('mesh');
+          if (mesh) {
+            mesh.material = new THREE.MeshBasicMaterial({ 
+              map: texture, 
+              side: THREE.DoubleSide 
+            });
+            mesh.material.needsUpdate = true;
+          }
+        };
+
+        img.onload = dibujarPreview;
+        img.onerror = dibujarPreview;
+        dibujarPreview();
+
+        el.classList.add('clickable');
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          abrirModalVideo(data.videoId);
+        });
+      }
+    });
+
+    AFRAME.registerComponent('lienzo-obra', {
+      schema: {
+        titulo: { type: 'string', default: 'OBRA DISPONIBLE' },
+        subtitulo: { type: 'string', default: 'Galería Nebulosa' },
+        src: { type: 'string', default: '' }
+      },
+      init: function () {
+        const el = this.el;
+        const data = this.data;
+
+        const aplicarTextura = (texture) => {
+          texture.colorSpace = THREE.SRGBColorSpace;
+          const mesh = el.getObject3D('mesh');
+          if (mesh) {
+            mesh.material = new THREE.MeshBasicMaterial({ 
+              map: texture, 
+              side: THREE.DoubleSide 
+            });
+            mesh.material.needsUpdate = true;
+          }
+        };
+
+        if (data.src && data.src.trim() !== '') {
+          const loader = new THREE.TextureLoader();
+          loader.setCrossOrigin('anonymous');
+          loader.load(
+            data.src,
+            function (tex) { aplicarTextura(tex); },
+            undefined,
+            function () { console.warn("Error cargando imagen: " + data.src); }
+          );
+          return;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 720;
+        const ctx = canvas.getContext('2d');
+
+        const grad = ctx.createLinearGradient(0, 0, 1024, 720);
+        grad.addColorStop(0, '#221538');
+        grad.addColorStop(0.5, '#161026');
+        grad.addColorStop(1, '#0c0a15');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.strokeStyle = '#c084fc';
+        ctx.lineWidth = 8;
+        ctx.strokeRect(30, 30, canvas.width - 60, canvas.height - 60);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = "bold 52px 'Poppins', sans-serif";
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(data.titulo, canvas.width / 2, canvas.height / 2 - 35);
+
+        ctx.fillStyle = '#e9d5ff';
+        ctx.font = "400 30px 'Poppins', sans-serif";
+        ctx.fillText(data.subtitulo, canvas.width / 2, canvas.height / 2 + 45);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        aplicarTextura(texture);
+      }
+    });
+
+    AFRAME.registerComponent('cuadro-ganador', {
+      schema: {
+        titulo: { type: 'string', default: 'GANADORES DE LOS PRIMEROS LUGARES' },
+        nombre: { type: 'string', default: 'Artistas Galardonados' }
+      },
+      init: function () {
+        const el = this.el;
+        const data = this.data;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 720;
+        canvas.height = 1024;
+        const ctx = canvas.getContext('2d');
+
+        const fondo = ctx.createLinearGradient(0, 0, 720, 1024);
+        fondo.addColorStop(0, '#2e1845');
+        fondo.addColorStop(0.5, '#201230');
+        fondo.addColorStop(1, '#170c24');
+        ctx.fillStyle = fondo;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 14;
+        ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(40, 40, canvas.width - 80, canvas.height - 80);
+
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = "bold 44px sans-serif";
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText("★   ★   ★", canvas.width / 2, 130);
+
+        ctx.font = "bold 24px 'Poppins', sans-serif";
+        ctx.fillStyle = "#fef3c7";
+        ctx.fillText("RECONOCIMIENTO DE HONOR", canvas.width / 2, 210);
+
+        ctx.beginPath();
+        ctx.moveTo(120, 250);
+        ctx.lineTo(600, 250);
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = "bold 30px 'Poppins', sans-serif";
+        ctx.fillText("GANADORES DE LOS", canvas.width / 2, 335);
+        ctx.font = "bold 34px 'Poppins', sans-serif";
+        ctx.fillText("PRIMEROS LUGARES", canvas.width / 2, 380);
+
+        ctx.font = "bold 105px sans-serif";
+        ctx.fillStyle = '#fbbf24';
+        ctx.fillText("★", canvas.width / 2, 510);
+
+        ctx.fillStyle = '#fef08a';
+        ctx.font = "bold 44px 'Poppins', sans-serif";
+        ctx.fillText(data.nombre, canvas.width / 2, 650);
+
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = "400 26px 'Poppins', sans-serif";
+        ctx.fillText("Galería Nebulosa", canvas.width / 2, 740);
+
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = "bold 32px sans-serif";
+        ctx.fillText("✦   ★   ✦", canvas.width / 2, 880);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        const mesh = el.getObject3D('mesh');
+        if (mesh) {
+          mesh.material = new THREE.MeshBasicMaterial({ 
+            map: texture, 
+            side: THREE.DoubleSide 
+          });
+          mesh.material.needsUpdate = true;
+        }
+      }
+    });
+
+    AFRAME.registerComponent('enhancer', {
+      init: function () {
+        this.el.addEventListener('model-loaded', () => {
+          const mesh = this.el.getObject3D('mesh');
+          if (!mesh) return;
+
+          const objetosParaEliminar = [];
+
+          mesh.traverse((node) => {
+            const matName = node.material && node.material.name ? node.material.name.toLowerCase() : "";
+            const objName = node.name ? node.name.toLowerCase() : "";
+            const combined = objName + " " + matName;
+
+            const esVegetacion = combined.includes('plant') || combined.includes('leaf') || 
+                                 combined.includes('leaves') || combined.includes('hoja') || 
+                                 combined.includes('pot') || combined.includes('maceta') || 
+                                 combined.includes('tree') || combined.includes('foliage') || 
+                                 combined.includes('flora') || combined.includes('flower') || 
+                                 combined.includes('branch') || combined.includes('vase');
+
+            let tieneColorPlanta = false;
+            if (node.material && node.material.color) {
+              const c = node.material.color;
+              if (c.g > 0.18 && c.g > c.r * 1.15 && c.g > c.b * 1.05) {
+                tieneColorPlanta = true;
+              }
+            }
+
+            if (esVegetacion || tieneColorPlanta) {
+              objetosParaEliminar.push(node);
+            }
+
+            if (node.isMesh && node.material) {
+              if (combined.includes('glass') || combined.includes('window') || combined.includes('vidrio') || combined.includes('cristal') || combined.includes('panel')) {
+                node.material.color = new THREE.Color(0x22222b);
+                node.material.transparent = true;
+                node.material.opacity = 0.52;
+                node.material.roughness = 0.20;
+                node.material.metalness = 0.15;
+                node.material.depthWrite = false;
+              } 
+              else if (combined.includes('light') || combined.includes('foco') || combined.includes('lamp') || combined.includes('spot') || combined.includes('bulb')) {
+                node.material.emissive = new THREE.Color(0xffeedd);
+                node.material.emissiveIntensity = 4.0;
+              } 
+              else if (combined.includes('floor') || combined.includes('suelo') || combined.includes('piso')) {
+                node.material.color = new THREE.Color(0xd0d4de);
+                node.material.roughness = 0.25;
+                node.material.metalness = 0.08;
+              } 
+              else if (combined.includes('wall') || combined.includes('pared') || combined.includes('muro')) {
+                node.material.color = new THREE.Color(0x584b70);
+                node.material.roughness = 0.88;
+                node.material.metalness = 0.02;
+              } 
+              node.material.needsUpdate = true;
+            }
+          });
+
+          objetosParaEliminar.forEach((obj) => {
+            obj.visible = false;
+            obj.scale.set(0, 0, 0);
+            if (obj.geometry) obj.geometry.dispose();
+            if (obj.parent) obj.parent.remove(obj);
+          });
+        });
+      }
+    });
+
+    AFRAME.registerComponent('rotulo-poppins', {
+      init: function () {
+        document.fonts.ready.then(() => {
+          const canvas = document.createElement('canvas');
+          canvas.width = 1024;
+          canvas.height = 256;
+          const ctx = canvas.getContext('2d');
+
+          ctx.fillStyle = "rgba(18, 16, 30, 0.95)";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          ctx.strokeStyle = "rgba(230, 220, 255, 0.35)";
+          ctx.lineWidth = 6;
+          ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+
+          ctx.font = "600 48px 'Poppins', sans-serif";
+          ctx.fillStyle = "#ffffff";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("«Donde cada arte brilla»", canvas.width / 2, canvas.height / 2);
+
+          const texture = new THREE.CanvasTexture(canvas);
+          const mat = new THREE.MeshBasicMaterial({ 
+            map: texture, 
+            transparent: true, 
+            side: THREE.DoubleSide 
+          });
+          const mesh = this.el.getObject3D('mesh');
+          if (mesh) mesh.material = mat;
+        });
+      }
+    });
+
+    AFRAME.registerComponent('video-handler', {
+      init: function () {
+        const video = document.querySelector('#video-nebulosa');
+        if (!video) return;
+
+        video.playbackRate = 1.0;
+
+        const startVideo = () => {
+          if (video.paused) {
+            video.playbackRate = 1.0;
+            video.play().catch(() => {});
+          }
+          window.removeEventListener('click', startVideo);
+          window.removeEventListener('keydown', startVideo);
+        };
+        window.addEventListener('click', startVideo);
+        window.addEventListener('keydown', startVideo);
+      }
+    });
+  </script>
+</head>
+<body style="margin: 0; overflow: hidden; background-color: #000;">
+
+  <!-- VENTANA EMERGENTE DE INFORMACIÓN DE OBRA (ESTILO ARTSTEPS) -->
+  <div id="artwork-modal-overlay" onclick="if(event.target === this) cerrarModalObra()">
+    <div id="artwork-modal">
+      <button id="artwork-modal-close" onclick="cerrarModalObra()" title="Cerrar">✕</button>
+      <span id="artwork-modal-badge">Galería Nebulosa</span>
+      <h2 id="artwork-modal-title">Título de la Obra</h2>
+      <p id="artwork-modal-desc">Descripción del cuadro...</p>
+      <a id="artwork-modal-link" href="https://galerianebulosa.com/obras-destacadas/" target="_blank">Ver obra completa ↗</a>
+    </div>
+  </div>
+
+  <!-- VENTANA EMERGENTE DE REPRODUCTOR YOUTUBE CON BOTÓN 'X' FLOTANTE -->
+  <div id="video-modal-overlay" onclick="if(event.target === this) cerrarModalVideo()">
+    <div id="video-modal-wrapper">
+      <button id="video-modal-close" onclick="cerrarModalVideo()" title="Cerrar video (Esc)">✕</button>
+      <div id="video-modal-container">
+        <iframe id="youtube-player-frame" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+      </div>
+    </div>
+  </div>
+
+  <!-- GUÍA DE NAVEGACIÓN Y BOTONES DE MOVIMIENTO EN PANTALLA -->
+  <div id="nav-guide">
+    <div class="guide-title">Navegación</div>
+    
+    <div class="arrow-pad">
+      <div class="key-cap" onclick="moverConBoton('ArrowUp')">↑</div>
+      <div class="arrow-row">
+        <div class="key-cap" onclick="moverConBoton('ArrowLeft')">←</div>
+        <div class="key-cap" onclick="moverConBoton('ArrowDown')">↓</div>
+        <div class="key-cap" onclick="moverConBoton('ArrowRight')">→</div>
+      </div>
+    </div>
+    <span style="font-size: 10px; color: #9c9cb8;">Clic flechas o WASD</span>
+
+    <div style="width: 80%; height: 1px; background: rgba(255,255,255,0.15);"></div>
+
+    <div class="guide-item">
+      <div class="mouse-icon"></div>
+      <span>Girar 360°<br>(Arrastrar mouse)</span>
+    </div>
+
+    <!-- BOTÓN PARA ABRIR EL EDITOR SIN USAR TECLADO -->
+    <button class="btn-editor" onclick="activarEditorVisual()">🛠️ Abrir Editor 3D</button>
+  </div>
+
+  <!-- ESCENA CON RAYCASTER DE RATÓN ACTIVADO DIRECTO PARA CLICS -->
+  <a-scene 
+    video-handler
+    cursor="rayOrigin: mouse;"
+    raycaster="objects: .clickable;"
+    renderer="colorManagement: true; physicallyCorrectLights: true; exposure: 1.25; toneMapping: ACESFilmic;">
+
+    <a-assets timeout="10000">
+      <a-asset-item id="modelo-sala" src="galeria.glb"></a-asset-item>
+      
+      <video id="video-nebulosa" 
+             src="nebulosa.mp4" 
+             autoplay 
+             loop 
+             muted 
+             playsinline 
+             webkit-playsinline 
+             crossorigin="anonymous">
+      </video>
+    </a-assets>
+
+    <!-- FONDO DE VIDEO CÓSMICO -->
+    <a-videosphere src="#video-nebulosa" rotation="0 -90 0"></a-videosphere>
+
+    <!-- ILUMINACIÓN AMBIENTAL DE LA SALA -->
+    <a-entity light="type: ambient; color: #f0f2fa; intensity: 1.1;"></a-entity>
+    <a-entity light="type: hemisphere; groundColor: #282835; color: #ffffff; intensity: 1.1;"></a-entity>
+
+    <!-- LUZ CENITAL DESDE LA CÚPULA -->
+    <a-entity light="type: directional; color: #ffffff; intensity: 1.4;" position="0 25 -16"></a-entity>
+
+    <!-- CONOS DE LUZ CÁLIDA SOBRE LAS PAREDES -->
+    <a-entity light="type: spot; color: #fff1d6; intensity: 6.0; angle: 50; penumbra: 0.7; distance: 28;" position="-6 7.5 -16" rotation="-65 -90 0"></a-entity>
+    <a-entity light="type: spot; color: #fff1d6; intensity: 6.0; angle: 50; penumbra: 0.7; distance: 28;" position="6 7.5 -16" rotation="-65 90 0"></a-entity>
+    <a-entity light="type: spot; color: #fff1d6; intensity: 6.5; angle: 52; penumbra: 0.7; distance: 35;" position="0 8.0 -22" rotation="-55 0 0"></a-entity>
+
+    <!-- MODELO 3D DE LA SALA -->
+    <a-entity gltf-model="#modelo-sala" enhancer position="0 0 0"></a-entity>
+
+    <!-- RÓTULO EXTERIOR -->
+    <a-plane id="rotulo-exterior" position="-18.13 2.20 -4.89" rotation="0 0 0" width="3.6" height="0.9" rotulo-poppins></a-plane>
+
+
+    <!-- ========================================================================= -->
+    <!-- ZONA CURATORIAL: OBRAS Y PANTALLAS EN 9 GRUPOS                            -->
+    <!-- ========================================================================= -->
+
+    <!-- ========================================================================= -->
+    <!-- GRUPO 1: PARED IZQUIERDA                                                  -->
+    <!-- ========================================================================= -->
+
+    <!-- CUADRO DE HONOR VERTICAL: GANADORES DE LOS PRIMEROS LUGARES -->
+    <a-entity id="grupo-1-cuadro-honor"
+              obra-interactiva="titulo: Ganadores de los Primeros Lugares; desc: Reconocimiento especial a los artistas galardonados en la muestra anual.; link: https://galerianebulosa.com/obras-destacadas/"
+              position="-9.95 1.95 -16.08" rotation="0 90 0">
+      <a-box width="1.20" height="1.80" depth="0.08" color="#261338" material="roughness: 0.25; metalness: 0.5"></a-box>
+      <a-plane position="0 0 0.045" width="1.10" height="1.70"
+               cuadro-ganador="titulo: GANADORES DE LOS PRIMEROS LUGARES; nombre: Artistas Galardonados;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="1.10" height="1.70"
+               cuadro-ganador="titulo: GANADORES DE LOS PRIMEROS LUGARES; nombre: Artistas Galardonados;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 1 (Izquierda) -->
+    <a-entity id="grupo-1-obra-1"
+              obra-interactiva="titulo: Título de Obra 1; desc: Descripción del cuadro 1; link: https://galerianebulosa.com/obras-destacadas/"
+              position="-9.86 1.95 -18.11" rotation="0 90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 1; subtitulo: Grupo 1 - Izquierda; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 1; subtitulo: Grupo 1 - Izquierda; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 2 (Izquierda - Centro) -->
+    <a-entity id="grupo-1-obra-2"
+              obra-interactiva="titulo: Título de Obra 2; desc: Descripción del cuadro 2; link: https://galerianebulosa.com/obras-destacadas/"
+              position="-9.93 1.95 -20.81" rotation="0 90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 2; subtitulo: Grupo 1 - Izquierda; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 2; subtitulo: Grupo 1 - Izquierda; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 3 (Izquierda) -->
+    <a-entity id="grupo-1-obra-3"
+              obra-interactiva="titulo: Título de Obra 3; desc: Descripción del cuadro 3; link: https://galerianebulosa.com/obras-destacadas/"
+              position="-9.94 1.95 -23.51" rotation="0 90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 3; subtitulo: Grupo 1 - Izquierda; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 3; subtitulo: Grupo 1 - Izquierda; src: ;">
+      </a-plane>
+    </a-entity>
+
+
+    <!-- ========================================================= -->
+    <!-- GRUPO 2: PARED DERECHA (Tabique divisorio)               -->
+    <!-- ========================================================= -->
+
+    <!-- OBRA 4 (Derecha - Frente) -->
+    <a-entity id="obra-4"
+              obra-interactiva="titulo: Título de Obra 4; desc: Descripción del cuadro 4; link: https://galerianebulosa.com/obras-destacadas/"
+              position="-0.16 2.05 -16.99" rotation="0 -90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 4; subtitulo: Grupo 2 - Derecha; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 4; subtitulo: Grupo 2 - Derecha; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 5 (Derecha - Centro) -->
+    <a-entity id="obra-5"
+              obra-interactiva="titulo: Título de Obra 5; desc: Descripción del cuadro 5; link: https://galerianebulosa.com/obras-destacadas/"
+              position="-0.28 2.05 -20.06" rotation="0 -90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 5; subtitulo: Grupo 2 - Derecha; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 5; subtitulo: Grupo 2 - Derecha; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 6 (Derecha - Fondo) -->
+    <a-entity id="obra-6"
+              obra-interactiva="titulo: Título de Obra 6; desc: Descripción del cuadro 6; link: https://galerianebulosa.com/obras-destacadas/"
+              position="-0.15 2.05 -23.12" rotation="0 -90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 6; subtitulo: Grupo 2 - Derecha; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 6; subtitulo: Grupo 2 - Derecha; src: ;">
+      </a-plane>
+    </a-entity>
+
+
+    <!-- ========================================================= -->
+    <!-- GRUPO 3: PARED DE FONDO                                   -->
+    <!-- ========================================================= -->
+
+    <!-- OBRA 7 (Fondo - Izquierda) -->
+    <a-entity id="grupo-3-obra-7"
+              obra-interactiva="titulo: Título de Obra 7; desc: Descripción del cuadro 7; link: https://galerianebulosa.com/obras-destacadas/"
+              position="-8.00 2.03 -25.02" rotation="0 0 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 7; subtitulo: Grupo 3 - Fondo; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 7; subtitulo: Grupo 3 - Fondo; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 8 (Fondo - Centro de Honor Principal) -->
+    <a-entity id="grupo-3-obra-8"
+              obra-interactiva="titulo: Título de Obra 8; desc: Descripción de la pieza central de honor.; link: https://galerianebulosa.com/obras-destacadas/"
+              position="-4.94 2.00 -24.89" rotation="0 0 0">
+      <a-box width="3.2" height="2.2" depth="0.10" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.055" width="3.05" height="2.05"
+               lienzo-obra="titulo: OBRA 8; subtitulo: Espacio Principal; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.055" rotation="0 180 0" width="3.05" height="2.05"
+               lienzo-obra="titulo: OBRA 8; subtitulo: Espacio Principal; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 9 (Fondo - Derecha) -->
+    <a-entity id="grupo-3-obra-9"
+              obra-interactiva="titulo: Título de Obra 9; desc: Descripción del cuadro 9; link: https://galerianebulosa.com/obras-destacadas/"
+              position="-1.88 2.06 -24.78" rotation="0 0 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 9; subtitulo: Grupo 3 - Fondo; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 9; subtitulo: Grupo 3 - Fondo; src: ;">
+      </a-plane>
+    </a-entity>
+
+
+    <!-- ========================================================================= -->
+    <!-- GRUPO 4: PARED LATERAL DERECHA (Obras 10 al 16)                           -->
+    <!-- ========================================================================= -->
+
+    <!-- OBRA 10 (Derecha - Sector 1) -->
+    <a-entity id="grupo-4-obra-10"
+              obra-interactiva="titulo: Título de Obra 10; desc: Descripción del cuadro 10; link: https://galerianebulosa.com/obras-destacadas/"
+              position="1.55 2.05 -14.98" rotation="0 0 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 10; subtitulo: Grupo 4 - Lateral; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 10; subtitulo: Grupo 4 - Lateral; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 11 (Derecha - Sector 2) -->
+    <a-entity id="grupo-4-obra-11"
+              obra-interactiva="titulo: Título de Obra 11; desc: Descripción del cuadro 11; link: https://galerianebulosa.com/obras-destacadas/"
+              position="4.32 2.05 -15.02" rotation="0 0 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 11; subtitulo: Grupo 4 - Lateral; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 11; subtitulo: Grupo 4 - Lateral; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 12 (Derecha - Sector 3) -->
+    <a-entity id="grupo-4-obra-12"
+              obra-interactiva="titulo: Título de Obra 12; desc: Descripción del cuadro 12; link: https://galerianebulosa.com/obras-destacadas/"
+              position="7.14 2.05 -15.02" rotation="0 0 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 12; subtitulo: Grupo 4 - Lateral; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 12; subtitulo: Grupo 4 - Lateral; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 13 (Derecha - Sector 4) -->
+    <a-entity id="grupo-4-obra-13"
+              obra-interactiva="titulo: Título de Obra 13; desc: Descripción del cuadro 13; link: https://galerianebulosa.com/obras-destacadas/"
+              position="9.93 2.05 -14.90" rotation="0 0 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 13; subtitulo: Grupo 4 - Lateral; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 13; subtitulo: Grupo 4 - Lateral; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 14 (Derecha - Sector 5) -->
+    <a-entity id="grupo-4-obra-14"
+              obra-interactiva="titulo: Título de Obra 14; desc: Descripción del cuadro 14; link: https://galerianebulosa.com/obras-destacadas/"
+              position="12.77 2.05 -14.92" rotation="0 0 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 14; subtitulo: Grupo 4 - Lateral; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 14; subtitulo: Grupo 4 - Lateral; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 15 (Derecha - Sector 6) -->
+    <a-entity id="grupo-4-obra-15"
+              obra-interactiva="titulo: Título de Obra 15; desc: Descripción del cuadro 15; link: https://galerianebulosa.com/obras-destacadas/"
+              position="15.60 2.05 -14.91" rotation="0 0 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 15; subtitulo: Grupo 4 - Lateral; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 15; subtitulo: Grupo 4 - Lateral; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 16 (Derecha - Sector 7) -->
+    <a-entity id="grupo-4-obra-16"
+              obra-interactiva="titulo: Título de Obra 16; desc: Descripción del cuadro 16; link: https://galerianebulosa.com/obras-destacadas/"
+              position="18.33 2.05 -14.85" rotation="0 0 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 16; subtitulo: Grupo 4 - Lateral; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 16; subtitulo: Grupo 4 - Lateral; src: ;">
+      </a-plane>
+    </a-entity>
+
+
+    <!-- ========================================================================= -->
+    <!-- GRUPO 5: PARED PERPENDICULAR DERECHA (14 Obras: 17 al 30)                 -->
+    <!-- ========================================================================= -->
+
+    <!-- OBRA 17 -->
+    <a-entity id="grupo-5-obra-17"
+              obra-interactiva="titulo: Título de Obra 17; desc: Descripción del cuadro 17; link: https://galerianebulosa.com/obras-destacadas/"
+              position="20.00 2.05 -13.46" rotation="0 -90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 17; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 17; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 18 -->
+    <a-entity id="grupo-5-obra-18"
+              obra-interactiva="titulo: Título de Obra 18; desc: Descripción del cuadro 18; link: https://galerianebulosa.com/obras-destacadas/"
+              position="20.00 2.05 -10.66" rotation="0 -90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 18; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 18; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 19 -->
+    <a-entity id="grupo-5-obra-19"
+              obra-interactiva="titulo: Título de Obra 19; desc: Descripción del cuadro 19; link: https://galerianebulosa.com/obras-destacadas/"
+              position="20.00 2.05 -7.86" rotation="0 -90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 19; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 19; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 20 -->
+    <a-entity id="grupo-5-obra-20"
+              obra-interactiva="titulo: Título de Obra 20; desc: Descripción del cuadro 20; link: https://galerianebulosa.com/obras-destacadas/"
+              position="20.00 2.05 -5.06" rotation="0 -90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 20; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 20; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 21 -->
+    <a-entity id="grupo-5-obra-21"
+              obra-interactiva="titulo: Título de Obra 21; desc: Descripción del cuadro 21; link: https://galerianebulosa.com/obras-destacadas/"
+              position="20.00 2.05 -2.26" rotation="0 -90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 21; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 21; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 22 -->
+    <a-entity id="grupo-5-obra-22"
+              obra-interactiva="titulo: Título de Obra 22; desc: Descripción del cuadro 22; link: https://galerianebulosa.com/obras-destacadas/"
+              position="20.00 2.05 0.54" rotation="0 -90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; rotate="0 -90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 22; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 22; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 23 -->
+    <a-entity id="grupo-5-obra-23"
+              obra-interactiva="titulo: Título de Obra 23; desc: Descripción del cuadro 23; link: https://galerianebulosa.com/obras-destacadas/"
+              position="20.00 2.05 3.34" rotation="0 -90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 23; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 23; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 24 -->
+    <a-entity id="grupo-5-obra-24"
+              obra-interactiva="titulo: Título de Obra 24; desc: Descripción del cuadro 24; link: https://galerianebulosa.com/obras-destacadas/"
+              position="20.00 2.05 6.14" rotation="0 -90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 24; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 24; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 25 -->
+    <a-entity id="grupo-5-obra-25"
+              obra-interactiva="titulo: Título de Obra 25; desc: Descripción del cuadro 25; link: https://galerianebulosa.com/obras-destacadas/"
+              position="20.00 2.05 8.94" rotation="0 -90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 25; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 25; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 26 -->
+    <a-entity id="grupo-5-obra-26"
+              obra-interactiva="titulo: Título de Obra 26; desc: Descripción del cuadro 26; link: https://galerianebulosa.com/obras-destacadas/"
+              position="20.00 2.05 11.74" rotation="0 -90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 26; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 26; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 27 -->
+    <a-entity id="grupo-5-obra-27"
+              obra-interactiva="titulo: Título de Obra 27; desc: Descripción del cuadro 27; link: https://galerianebulosa.com/obras-destacadas/"
+              position="20.00 2.05 14.54" rotation="0 -90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 27; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 27; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 28 -->
+    <a-entity id="grupo-5-obra-28"
+              obra-interactiva="titulo: Título de Obra 28; desc: Descripción del cuadro 28; link: https://galerianebulosa.com/obras-destacadas/"
+              position="20.00 2.05 17.34" rotation="0 -90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 28; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 28; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 29 -->
+    <a-entity id="grupo-5-obra-29"
+              obra-interactiva="titulo: Título de Obra 29; desc: Descripción del cuadro 29; link: https://galerianebulosa.com/obras-destacadas/"
+              position="20.00 2.05 20.14" rotation="0 -90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 29; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 29; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 30 -->
+    <a-entity id="grupo-5-obra-30"
+              obra-interactiva="titulo: Título de Obra 30; desc: Descripción del cuadro 30; link: https://galerianebulosa.com/obras-destacadas/"
+              position="20.00 2.05 22.94" rotation="0 -90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 30; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 30; subtitulo: Grupo 5 - Lateral; src: ;">
+      </a-plane>
+    </a-entity>
+
+
+    <!-- ========================================================================= -->
+    <!-- GRUPO 6: MURO DE CIERRE PERPENDICULAR (3 Obras: 31 al 33)                 -->
+    <!-- ========================================================================= -->
+
+    <!-- OBRA 31 -->
+    <a-entity id="grupo-6-obra-31"
+              obra-interactiva="titulo: Título de Obra 31; desc: Descripción del cuadro 31; link: https://galerianebulosa.com/obras-destacadas/"
+              position="17.70 2.05 24.94" rotation="0 180 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 31; subtitulo: Grupo 6 - Cierre; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 31; subtitulo: Grupo 6 - Cierre; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 32 -->
+    <a-entity id="grupo-6-obra-32"
+              obra-interactiva="titulo: Título de Obra 32; desc: Descripción del cuadro 32; link: https://galerianebulosa.com/obras-destacadas/"
+              position="14.90 2.05 24.99" rotation="0 180 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 32; subtitulo: Grupo 6 - Cierre; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 32; subtitulo: Grupo 6 - Cierre; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 33 -->
+    <a-entity id="grupo-6-obra-33"
+              obra-interactiva="titulo: Título de Obra 33; desc: Descripción del cuadro 33; link: https://galerianebulosa.com/obras-destacadas/"
+              position="12.10 2.05 24.95" rotation="0 180 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 33; subtitulo: Grupo 6 - Cierre; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 33; subtitulo: Grupo 6 - Cierre; src: ;">
+      </a-plane>
+    </a-entity>
+
+
+    <!-- ========================================================================= -->
+    <!-- GRUPO 7: PAREDES EN "L" (15 Obras: 34 al 48)                              -->
+    <!-- ========================================================================= -->
+
+    <!-- OBRA 34 (Pared Frontal - Sector 1) -->
+    <a-entity id="grupo-7-obra-34"
+              obra-interactiva="titulo: Título de Obra 34; desc: Descripción del cuadro 34; link: https://galerianebulosa.com/obras-destacadas/"
+              position="10.26 2.13 22.93" rotation="0 90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 34; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 34; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 35 (Pared Frontal - Sector 2) -->
+    <a-entity id="grupo-7-obra-35"
+              obra-interactiva="titulo: Título de Obra 35; desc: Descripción del cuadro 35; link: https://galerianebulosa.com/obras-destacadas/"
+              position="10.15 2.05 20.04" rotation="0 90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 35; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 35; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 36 (Pared Frontal - Sector 3) -->
+    <a-entity id="grupo-7-obra-36"
+              obra-interactiva="titulo: Título de Obra 36; desc: Descripción del cuadro 36; link: https://galerianebulosa.com/obras-destacadas/"
+              position="9.98 2.05 17.06" rotation="0 90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 36; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 36; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 37 (Pared Derecha - Sector 1) -->
+    <a-entity id="grupo-7-obra-37"
+              obra-interactiva="titulo: Título de Obra 37; desc: Descripción del cuadro 37; link: https://galerianebulosa.com/obras-destacadas/"
+              position="8.34 2.05 15.03" rotation="0 0 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 37; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 37; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 38 (Pared Derecha - Sector 2) -->
+    <a-entity id="grupo-7-obra-38"
+              obra-interactiva="titulo: Título de Obra 38; desc: Descripción del cuadro 38; link: https://galerianebulosa.com/obras-destacadas/"
+              position="5.14 2.05 14.96" rotation="0 0 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 38; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 38; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 39 (Pared Derecha - Sector 3) -->
+    <a-entity id="grupo-7-obra-39"
+              obra-interactiva="titulo: Título de Obra 39; desc: Descripción del cuadro 39; link: https://galerianebulosa.com/obras-destacadas/"
+              position="1.90 2.05 14.90" rotation="0 0 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 39; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 39; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 40 (Pared Lateral) -->
+    <a-entity id="grupo-7-obra-40"
+              obra-interactiva="titulo: Título de Obra 40; desc: Descripción del cuadro 40; link: https://galerianebulosa.com/obras-destacadas/"
+              position="0.01 2.05 13.20" rotation="0 90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 40; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 40; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 41 (Pared Lateral) -->
+    <a-entity id="grupo-7-obra-41"
+              obra-interactiva="titulo: Título de Obra 41; desc: Descripción del cuadro 41; link: https://galerianebulosa.com/obras-destacadas/"
+              position="0.01 2.05 10.19" rotation="0 90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 41; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 41; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 42 (Pared Lateral) -->
+    <a-entity id="grupo-7-obra-42"
+              obra-interactiva="titulo: Título de Obra 42; desc: Descripción del cuadro 42; link: https://galerianebulosa.com/obras-destacadas/"
+              position="0.01 2.05 7.16" rotation="0 90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 42; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 42; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 43 (Pared Perpendicular - Inicio) -->
+    <a-entity id="grupo-7-obra-43"
+              obra-interactiva="titulo: Título de Obra 43; desc: Descripción del cuadro 43; link: https://galerianebulosa.com/obras-destacadas/"
+              position="1.63 2.05 5.03" rotation="0 0 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 43; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 43; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 44 (Pared Perpendicular - Sector 2) -->
+    <a-entity id="grupo-7-obra-44"
+              obra-interactiva="titulo: Título de Obra 44; desc: Descripción del cuadro 44; link: https://galerianebulosa.com/obras-destacadas/"
+              position="4.96 2.05 5.03" rotation="0 0 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 44; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 44; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 45 (Pared Perpendicular - Sector 3) -->
+    <a-entity id="grupo-7-obra-45"
+              obra-interactiva="titulo: Título de Obra 45; desc: Descripción del cuadro 45; link: https://galerianebulosa.com/obras-destacadas/"
+              position="8.23 2.05 5.03" rotation="0 0 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 45; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 45; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 46 (Pared Perpendicular - Sector 4) -->
+    <a-entity id="grupo-7-obra-46"
+              obra-interactiva="titulo: Título de Obra 46; desc: Descripción del cuadro 46; link: https://galerianebulosa.com/obras-destacadas/"
+              position="10.23 2.05 3.14" rotation="0 90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 46; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 46; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 47 (Pared Perpendicular - Sector 5) -->
+    <a-entity id="grupo-7-obra-47"
+              obra-interactiva="titulo: Título de Obra 47; desc: Descripción del cuadro 47; link: https://galerianebulosa.com/obras-destacadas/"
+              position="10.23 2.05 0.01" rotation="0 90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 47; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 47; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 48 (Pared Perpendicular - Sector 6) -->
+    <a-entity id="grupo-7-obra-48"
+              obra-interactiva="titulo: Título de Obra 48; desc: Descripción del cuadro 48; link: https://galerianebulosa.com/obras-destacadas/"
+              position="10.23 2.05 -3.13" rotation="0 90 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 48; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 48; subtitulo: Grupo 7; src: ;">
+      </a-plane>
+    </a-entity>
+
+
+    <!-- ========================================================================= -->
+    <!-- GRUPO 8: PARED PRINCIPAL DEL PASILLO (10 Obras: 49 al 58)                 -->
+    <!-- ========================================================================= -->
+
+    <!-- OBRA 49 -->
+    <a-entity id="grupo-8-obra-49"
+              obra-interactiva="titulo: Título de Obra 49; desc: Descripción del cuadro 49; link: https://galerianebulosa.com/obras-destacadas/"
+              position="8.46 2.05 -5.00" rotation="0 180 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 49; subtitulo: Grupo 8; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 49; subtitulo: Grupo 8; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 50 -->
+    <a-entity id="grupo-8-obra-50"
+              obra-interactiva="titulo: Título de Obra 50; desc: Descripción del cuadro 50; link: https://galerianebulosa.com/obras-destacadas/"
+              position="5.66 2.05 -5.01" rotation="0 180 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 50; subtitulo: Grupo 8; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 50; subtitulo: Grupo 8; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 51 -->
+    <a-entity id="grupo-8-obra-51"
+              obra-interactiva="titulo: Título de Obra 51; desc: Descripción del cuadro 51; link: https://galerianebulosa.com/obras-destacadas/"
+              position="2.80 2.05 -5.00" rotation="0 180 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 51; subtitulo: Grupo 8; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 51; subtitulo: Grupo 8; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 52 -->
+    <a-entity id="grupo-8-obra-52"
+              obra-interactiva="titulo: Título de Obra 52; desc: Descripción del cuadro 52; link: https://galerianebulosa.com/obras-destacadas/"
+              position="-0.04 2.05 -5.08" rotation="0 180 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 52; subtitulo: Grupo 8; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 52; subtitulo: Grupo 8; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 53 -->
+    <a-entity id="grupo-8-obra-53"
+              obra-interactiva="titulo: Título de Obra 53; desc: Descripción del cuadro 53; link: https://galerianebulosa.com/obras-destacadas/"
+              position="-2.85 2.05 -5.00" rotation="0 180 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 53; subtitulo: Grupo 8; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 53; subtitulo: Grupo 8; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 54 -->
+    <a-entity id="grupo-8-obra-54"
+              obra-interactiva="titulo: Título de Obra 54; desc: Descripción del cuadro 54; link: https://galerianebulosa.com/obras-destacadas/"
+              position="-5.68 2.05 -4.97" rotation="0 180 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 54; subtitulo: Grupo 8; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 54; subtitulo: Grupo 8; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 55 -->
+    <a-entity id="grupo-8-obra-55"
+              obra-interactiva="titulo: Título de Obra 55; desc: Descripción del cuadro 55; link: https://galerianebulosa.com/obras-destacadas/"
+              position="-8.51 2.05 -4.97" rotation="0 180 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 55; subtitulo: Grupo 8; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 55; subtitulo: Grupo 8; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 56 -->
+    <a-entity id="grupo-8-obra-56"
+              obra-interactiva="titulo: Título de Obra 56; desc: Descripción del cuadro 56; link: https://galerianebulosa.com/obras-destacadas/"
+              position="-11.36 2.06 -5.08" rotation="0 180 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 56; subtitulo: Grupo 8; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 56; subtitulo: Grupo 8; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 57 -->
+    <a-entity id="grupo-8-obra-57"
+              obra-interactiva="titulo: Título de Obra 57; desc: Descripción del cuadro 57; link: https://galerianebulosa.com/obras-destacadas/"
+              position="-14.14 2.05 -5.01" rotation="0 180 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 57; subtitulo: Grupo 8; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 57; subtitulo: Grupo 8; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 58 -->
+    <a-entity id="grupo-8-obra-58"
+              obra-interactiva="titulo: Título de Obra 58; desc: Descripción del cuadro 58; link: https://galerianebulosa.com/obras-destacadas/"
+              position="-16.94 2.05 -5.01" rotation="0 180 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 58; subtitulo: Grupo 8; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 58; subtitulo: Grupo 8; src: ;">
+      </a-plane>
+    </a-entity>
+
+
+    <!-- ========================================================================= -->
+    <!-- GRUPO 9: PARED TESTERA DEL PASILLO (Obras 59 a 61 + Pantalla de Video)   -->
+    <!-- ========================================================================= -->
+
+    <!-- OBRA 59 (Grupo 9) -->
+    <a-entity id="grupo-9-obra-59"
+              obra-interactiva="titulo: Título de Obra 59; desc: Descripción del cuadro 59; link: https://galerianebulosa.com/obras-destacadas/"
+              position="-17.63 2.05 -15.03" rotation="0 180 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 59; subtitulo: Grupo 9; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 59; subtitulo: Grupo 9; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 60 (Grupo 9) -->
+    <a-entity id="grupo-9-obra-60"
+              obra-interactiva="titulo: Título de Obra 60; desc: Descripción del cuadro 60; link: https://galerianebulosa.com/obras-destacadas/"
+              position="-14.93 2.05 -15.03" rotation="0 180 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 60; subtitulo: Grupo 9; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 60; subtitulo: Grupo 9; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- OBRA 61 (Grupo 9) -->
+    <a-entity id="grupo-9-obra-61"
+              obra-interactiva="titulo: Título de Obra 61; desc: Descripción del cuadro 61; link: https://galerianebulosa.com/obras-destacadas/"
+              position="-12.23 2.05 -15.03" rotation="0 180 0">
+      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
+      <a-plane position="0 0 0.045" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 61; subtitulo: Grupo 9; src: ;">
+      </a-plane>
+      <a-plane position="0 0 -0.045" rotation="0 180 0" width="2.35" height="1.65"
+               lienzo-obra="titulo: OBRA 61; subtitulo: Grupo 9; src: ;">
+      </a-plane>
+    </a-entity>
+
+    <!-- PANTALLA DE VIDEO YOUTUBE (Alineada recta en la pared del fondo) -->
+    <a-entity id="pantalla-video-presentacion"
+              position="-19.66 2.02 -10.20" rotation="0 90 0">
+      <!-- Marco exterior estilo Artsteps -->
+      <a-box width="3.90" height="2.30" depth="0.09" color="#0f0c18" material="roughness: 0.3; metalness: 0.6"></a-box>
+      <!-- Borde de iluminación morada tenue -->
+      <a-box width="3.74" height="2.14" depth="0.095" color="#9333ea" material="roughness: 0.2; emissive: #7c3aed; emissiveIntensity: 0.35"></a-box>
+      <!-- Superficie con previsualización del video y disparador -->
+      <a-plane position="0 0 0.055" width="3.60" height="2.025"
+               pantalla-youtube="videoId: GZRF6dSq7tk; titulo: Video de Presentación;">
+      </a-plane>
+      <a-plane position="0 0 -0.055" rotation="0 180 0" width="3.60" height="2.025"
+               pantalla-youtube="videoId: GZRF6dSq7tk; titulo: Video de Presentación;">
+      </a-plane>
+    </a-entity>
+
+
+    <!-- CÁMARA (Inicia en el pasillo con vista frontal directa a la pantalla de video) -->
+    <a-entity id="rig" movement-controls="speed: 0.35; constrainToNavMesh: false;" position="-12.5 2.05 -10.0" rotation="0 90 0">
+      <a-camera position="0 0 0" look-controls="pointerLockEnabled: false; magicWindowTrackingEnabled: false;"></a-camera>
+    </a-entity>
+
+  </a-scene>
+
+</body>
+</html>
