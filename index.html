@@ -346,7 +346,7 @@
       }
     });
 
-    // MOVIMIENTO RELATIVO A HACIA DÓNDE MIRA LA CÁMARA (CORRIGE ROTACIÓN INVERTIDA)
+    // MOVIMIENTO RELATIVO A HACIA DÓNDE MIRA LA CÁMARA
     function moverConBoton(tecla) {
       const cameraRig = document.querySelector('#rig');
       const cameraEl = document.querySelector('a-camera');
@@ -388,17 +388,13 @@
       if (!cameraRig || !btn) return;
 
       if (!enLaNebulosa) {
-        // Guardar posición actual antes de salir
         const posActual = cameraRig.getAttribute('position');
         ultimaPosicionGaleria = { x: posActual.x, y: posActual.y, z: posActual.z };
-
-        // Teletransportar al mirador exterior de la Nebulosa
         cameraRig.setAttribute('position', { x: 0, y: 15.0, z: 22.0 });
         enLaNebulosa = true;
         btn.textContent = '🏛️ Volver a la Galería';
         btn.classList.add('afuera');
       } else {
-        // Regresar a la galería
         cameraRig.setAttribute('position', ultimaPosicionGaleria);
         enLaNebulosa = false;
         btn.textContent = '🌌 Salir a la Nebulosa';
@@ -406,280 +402,443 @@
       }
     }
 
-    AFRAME.registerComponent('obra-interactiva', {
-      schema: {
-        titulo: { type: 'string', default: '' },
-        desc: { type: 'string', default: '' },
-        link: { type: 'string', default: 'https://galerianebulosa.com/obras-destacadas/' }
-      },
-      init: function () {
-        const el = this.el;
-        const data = this.data;
+    // =========================================================================
+    // DELIMITADOR PERIMETRAL DE SEGURIDAD (evita salir de la galería)
+    // =========================================================================
+    function esDentroDeLaGaleria(x, z) {
+      // Zona 1: Sala de los Trofeos (Obras 1 a 9)
+      const enTrofeos = (x >= -10.1 && x <= 0.2 && z >= -25.2 && z <= -14.5);
+      // Zona 2: Pasillo Principal completo (de TV exterior a -19.7 hasta el fondo a +19.8)
+      const enPasillo = (x >= -20.1 && x <= 20.1 && z >= -15.2 && z <= -4.8);
+      // Zona 3: Ala derecha y corredores en L (Obras 10 a 48)
+      const enAlaDerecha = (x >= -0.2 && x <= 20.1 && z >= -5.2 && z <= 25.2);
+      return (enTrofeos || enPasillo || enAlaDerecha);
+    }
 
-        const vincularClic = (target) => {
-          target.classList.add('clickable');
-          target.addEventListener('click', (e) => {
-            e.stopPropagation();
-            abrirModalObra(data.titulo, data.desc, data.link);
-          });
-        };
+    // =========================================================================
+    // MAPA DE COLISIÓN GEOMÉTRICA (PISO Y MUROS)
+    // =========================================================================
+    function crearMapaColision(tris, opt) {
+      opt = opt || {};
+      var ojoY = opt.ojoY != null ? opt.ojoY : 2.05;
+      var ini = opt.inicio || { x: 0, z: 0 };
+      var n = Math.floor(tris.length / 9);
+      var info = { triangulos: n };
+      if (n === 0) return { activo: false, motivo: 'el modelo no tiene geometría', info: info };
 
-        vincularClic(el);
-        el.querySelectorAll('a-plane, a-box').forEach(vincularClic);
-      }
-    });
+      var i, j, o;
 
-    AFRAME.registerComponent('pantalla-youtube', {
-      schema: {
-        videoId: { type: 'string', default: 'GZRF6dSq7tk' },
-        titulo: { type: 'string', default: 'Presentación Galería Nebulosa' }
-      },
-      init: function () {
-        const el = this.el;
-        const data = this.data;
-
-        const canvas = document.createElement('canvas');
-        canvas.width = 1280;
-        canvas.height = 720;
-        const ctx = canvas.getContext('2d');
-
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.src = `https://images.weserv.nl/?url=img.youtube.com/vi/${data.videoId}/hqdefault.jpg`;
-
-        const dibujarPreview = () => {
-          if (img.complete && img.naturalWidth !== 0) {
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          } else {
-            const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-            grad.addColorStop(0, '#1c1032');
-            grad.addColorStop(1, '#0b0817');
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-          }
-
-          ctx.fillStyle = 'rgba(15, 10, 30, 0.4)';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-          ctx.fillStyle = 'rgba(168, 85, 247, 0.88)';
-          ctx.beginPath();
-          ctx.arc(canvas.width / 2, canvas.height / 2, 75, 0, Math.PI * 2);
-          ctx.fill();
-
-          ctx.fillStyle = '#ffffff';
-          ctx.beginPath();
-          ctx.moveTo(canvas.width / 2 - 25, canvas.height / 2 - 40);
-          ctx.lineTo(canvas.width / 2 + 45, canvas.height / 2);
-          ctx.lineTo(canvas.width / 2 - 25, canvas.height / 2 + 40);
-          ctx.closePath();
-          ctx.fill();
-
-          ctx.fillStyle = 'rgba(10, 8, 20, 0.75)';
-          ctx.fillRect(0, canvas.height - 80, canvas.width, 80);
-
-          ctx.fillStyle = '#ffffff';
-          ctx.font = "bold 32px 'Poppins', sans-serif";
-          ctx.textAlign = 'left';
-          ctx.textBaseline = 'middle';
-          ctx.fillText("▶ " + data.titulo, 35, canvas.height - 40);
-
-          const texture = new THREE.CanvasTexture(canvas);
-          texture.colorSpace = THREE.SRGBColorSpace;
-          const mesh = el.getObject3D('mesh');
-          if (mesh) {
-            mesh.material = new THREE.MeshBasicMaterial({ 
-              map: texture, 
-              side: THREE.FrontSide,
-              polygonOffset: true,
-              polygonOffsetFactor: -1,
-              polygonOffsetUnits: -1
-            });
-            mesh.material.needsUpdate = true;
-          }
-        };
-
-        img.onload = dibujarPreview;
-        img.onerror = dibujarPreview;
-        dibujarPreview();
-
-        el.classList.add('clickable');
-        el.addEventListener('click', (e) => {
-          e.stopPropagation();
-          abrirModalVideo(data.videoId);
-        });
-      }
-    });
-
-    // COMPONENTE DE LIENZO DE OBRA CON COLOR NATURAL (toneMapped = false) Y SOPORTE CORS
-    AFRAME.registerComponent('lienzo-obra', {
-      schema: {
-        titulo: { type: 'string', default: 'OBRA DISPONIBLE' },
-        subtitulo: { type: 'string', default: 'Galería Nebulosa' },
-        src: { type: 'string', default: '' }
-      },
-      init: function () {
-        const el = this.el;
-        const data = this.data;
-
-        const aplicarTextura = (texture) => {
-          texture.colorSpace = THREE.SRGBColorSpace;
-          const mesh = el.getObject3D('mesh');
-          if (mesh) {
-            mesh.material = new THREE.MeshBasicMaterial({ 
-              map: texture, 
-              side: THREE.FrontSide,
-              toneMapped: false,
-              polygonOffset: true,
-              polygonOffsetFactor: -1,
-              polygonOffsetUnits: -1
-            });
-            mesh.material.needsUpdate = true;
-          }
-        };
-
-        const dibujarCartelFallback = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = 1024;
-          canvas.height = 720;
-          const ctx = canvas.getContext('2d');
-
-          const grad = ctx.createLinearGradient(0, 0, 1024, 720);
-          grad.addColorStop(0, '#221538');
-          grad.addColorStop(0.5, '#161026');
-          grad.addColorStop(1, '#0c0a15');
-          ctx.fillStyle = grad;
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-          ctx.strokeStyle = '#c084fc';
-          ctx.lineWidth = 8;
-          ctx.strokeRect(30, 30, canvas.width - 60, canvas.height - 60);
-
-          ctx.fillStyle = '#ffffff';
-          ctx.font = "bold 52px 'Poppins', sans-serif";
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(data.titulo, canvas.width / 2, canvas.height / 2 - 35);
-
-          ctx.fillStyle = '#e9d5ff';
-          ctx.font = "400 30px 'Poppins', sans-serif";
-          ctx.fillText(data.subtitulo, canvas.width / 2, canvas.height / 2 + 45);
-
-          const texture = new THREE.CanvasTexture(canvas);
-          aplicarTextura(texture);
-        };
-
-        if (data.src && data.src.trim() !== '') {
-          let urlLimpia = data.src.trim();
-          if (urlLimpia.startsWith('http://')) {
-            urlLimpia = 'https://' + urlLimpia.substring(7);
-          }
-          let urlCORS = urlLimpia;
-          if (urlLimpia.includes('galerianebulosa.com') || urlLimpia.includes('wp-content')) {
-            urlCORS = 'https://images.weserv.nl/?url=' + encodeURIComponent(urlLimpia);
-          }
-
-          const loader = new THREE.TextureLoader();
-          loader.setCrossOrigin('anonymous');
-          loader.load(
-            urlCORS,
-            function (tex) { aplicarTextura(tex); },
-            undefined,
-            function () { 
-              loader.load(urlLimpia, function (tex2) {
-                aplicarTextura(tex2);
-              }, undefined, function () {
-                dibujarCartelFallback();
-              });
+      var hist = {};
+      var yTope = ojoY - 0.6;
+      var bajoPies = -Infinity;
+      var ax, ay, az, bx, by, bz, cx, cy, cz, ux, uy, uz, vx, vy, vz, nx, ny, nz, len, cosY;
+      for (i = 0; i < n; i++) {
+        o = i * 9;
+        ax = tris[o]; ay = tris[o + 1]; az = tris[o + 2];
+        bx = tris[o + 3]; by = tris[o + 4]; bz = tris[o + 5];
+        cx = tris[o + 6]; cy = tris[o + 7]; cz = tris[o + 8];
+        ux = bx - ax; uy = by - ay; uz = bz - az;
+        vx = cx - ax; vy = cy - ay; vz = cz - az;
+        nx = uy * vz - uz * vy; ny = uz * vx - ux * vz; nz = ux * vy - uy * vx;
+        len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+        if (len < 1e-9) continue;
+        if (Math.abs(ny) / len > 0.95) {
+          var yy = (ay + by + cy) / 3;
+          if (yy < yTope) {
+            var kb = Math.round(yy / 0.05);
+            hist[kb] = (hist[kb] || 0) + len / 2;
+            if (yy > bajoPies) {
+              var dd = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz);
+              if (Math.abs(dd) > 1e-12) {
+                var q1 = ((bz - cz) * (ini.x - cx) + (cx - bx) * (ini.z - cz)) / dd;
+                var q2 = ((cz - az) * (ini.x - cx) + (ax - cx) * (ini.z - cz)) / dd;
+                if (q1 >= -1e-9 && q2 >= -1e-9 && 1 - q1 - q2 >= -1e-9) bajoPies = yy;
+              }
             }
-          );
-        } else {
-          dibujarCartelFallback();
+          }
+        }
+      }
+      var pisoY = ojoY - 1.7, pisoDetectado = false;
+      if (bajoPies > -Infinity) {
+        pisoY = bajoPies;
+        pisoDetectado = true;
+      } else {
+        var mejor = 0, claves = Object.keys(hist), puntajes = {}, kk;
+        for (i = 0; i < claves.length; i++) {
+          kk = parseInt(claves[i], 10);
+          puntajes[kk] = (hist[kk - 1] || 0) + (hist[kk] || 0) + (hist[kk + 1] || 0);
+          if (puntajes[kk] > mejor) mejor = puntajes[kk];
+        }
+        if (mejor > 0) {
+          var yElegida = -Infinity;
+          for (i = 0; i < claves.length; i++) {
+            kk = parseInt(claves[i], 10);
+            if (puntajes[kk] >= mejor * 0.85 && kk * 0.05 > yElegida) yElegida = kk * 0.05;
+          }
+          pisoY = yElegida;
+          pisoDetectado = true;
+        }
+      }
+      info.pisoY = Math.round(pisoY * 100) / 100;
+
+      var minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+      var yBajo = pisoY - 0.2, yAlto = pisoY + 2.2;
+      for (i = 0; i < n; i++) {
+        o = i * 9;
+        ay = tris[o + 1]; by = tris[o + 4]; cy = tris[o + 7];
+        if (Math.max(ay, by, cy) < yBajo || Math.min(ay, by, cy) > yAlto) continue;
+        for (j = 0; j < 9; j += 3) {
+          var px = tris[o + j], pz = tris[o + j + 2];
+          if (px < minX) minX = px;
+          if (px > maxX) maxX = px;
+          if (pz < minZ) minZ = pz;
+          if (pz > maxZ) maxZ = pz;
+        }
+      }
+      if (!(maxX > minX) || !(maxZ > minZ)) return { activo: false, motivo: 'no hay geometría a la altura del cuerpo', info: info };
+      minX -= 1; minZ -= 1; maxX += 1; maxZ += 1;
+      var CELDA = 0.1;
+      while (Math.ceil((maxX - minX) / CELDA) * Math.ceil((maxZ - minZ) / CELDA) > 4e6) CELDA *= 1.5;
+      var PASO = CELDA / 2;
+      var W = Math.ceil((maxX - minX) / CELDA) + 1;
+      var H = Math.ceil((maxZ - minZ) / CELDA) + 1;
+      var piso = new Uint8Array(W * H);
+      var muro = new Uint8Array(W * H);
+      info.celdaM = Math.round(CELDA * 100) / 100;
+
+      var alturas = [0.35, 0.8, 1.25, 1.7];
+      var s, hh, pts, t, ix, iz, steps, sx, sz, L;
+      var marcarSegmento = function (x1, z1, x2, z2) {
+        L = Math.sqrt((x2 - x1) * (x2 - x1) + (z2 - z1) * (z2 - z1));
+        steps = Math.max(1, Math.ceil(L / PASO));
+        for (j = 0; j <= steps; j++) {
+          sx = x1 + (x2 - x1) * (j / steps);
+          sz = z1 + (z2 - z1) * (j / steps);
+          ix = Math.floor((sx - minX) / CELDA);
+          iz = Math.floor((sz - minZ) / CELDA);
+          if (ix >= 0 && iz >= 0 && ix < W && iz < H) muro[iz * W + ix] = 1;
+        }
+      };
+      var nMuros = 0, nPiso = 0;
+      for (i = 0; i < n; i++) {
+        o = i * 9;
+        ax = tris[o]; ay = tris[o + 1]; az = tris[o + 2];
+        bx = tris[o + 3]; by = tris[o + 4]; bz = tris[o + 5];
+        cx = tris[o + 6]; cy = tris[o + 7]; cz = tris[o + 8];
+        ux = bx - ax; uy = by - ay; uz = bz - az;
+        vx = cx - ax; vy = cy - ay; vz = cz - az;
+        nx = uy * vz - uz * vy; ny = uz * vx - ux * vz; nz = ux * vy - uy * vx;
+        len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+        if (len < 1e-9) continue;
+        cosY = Math.abs(ny) / len;
+
+        if (cosY < 0.9) {
+          var yMin = Math.min(ay, by, cy), yMax = Math.max(ay, by, cy);
+          var contado = false;
+          for (s = 0; s < alturas.length; s++) {
+            hh = pisoY + alturas[s];
+            if (hh < yMin || hh > yMax) continue;
+            pts = [];
+            if ((ay > hh) !== (by > hh)) { t = (hh - ay) / (by - ay); pts.push(ax + t * (bx - ax), az + t * (bz - az)); }
+            if ((by > hh) !== (cy > hh)) { t = (hh - by) / (cy - by); pts.push(bx + t * (cx - bx), bz + t * (cz - bz)); }
+            if ((cy > hh) !== (ay > hh)) { t = (hh - cy) / (ay - cy); pts.push(cx + t * (ax - cx), cz + t * (az - cz)); }
+            if (pts.length >= 4) { marcarSegmento(pts[0], pts[1], pts[2], pts[3]); contado = true; }
+          }
+          if (contado) nMuros++;
+        } else if (cosY > 0.95) {
+          var ym = (ay + by + cy) / 3;
+          if (Math.abs(ym - pisoY) < 0.12) {
+            var x0 = Math.min(ax, bx, cx), x1 = Math.max(ax, bx, cx);
+            var z0 = Math.min(az, bz, cz), z1 = Math.max(az, bz, cz);
+            var i0 = Math.max(0, Math.floor((x0 - minX) / CELDA)), i1 = Math.min(W - 1, Math.floor((x1 - minX) / CELDA));
+            var k0 = Math.max(0, Math.floor((z0 - minZ) / CELDA)), k1 = Math.min(H - 1, Math.floor((z1 - minZ) / CELDA));
+            var det = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz);
+            var marcado = false;
+            if (Math.abs(det) > 1e-12) {
+              for (var kz = k0; kz <= k1; kz++) {
+                var pz2 = minZ + (kz + 0.5) * CELDA;
+                for (var kx = i0; kx <= i1; kx++) {
+                  var px2 = minX + (kx + 0.5) * CELDA;
+                  var l1 = ((bz - cz) * (px2 - cx) + (cx - bx) * (pz2 - cz)) / det;
+                  var l2 = ((cz - az) * (px2 - cx) + (ax - cx) * (pz2 - cz)) / det;
+                  var l3 = 1 - l1 - l2;
+                  if (l1 >= -1e-9 && l2 >= -1e-9 && l3 >= -1e-9) { piso[kz * W + kx] = 1; marcado = true; }
+                }
+              }
+            }
+            if (!marcado) {
+              ix = Math.floor(((ax + bx + cx) / 3 - minX) / CELDA);
+              iz = Math.floor(((az + bz + cz) / 3 - minZ) / CELDA);
+              if (ix >= 0 && iz >= 0 && ix < W && iz < H) piso[iz * W + ix] = 1;
+            }
+            nPiso++;
+          }
+        }
+      }
+      var celdasPiso = 0, celdasMuro = 0;
+      for (i = 0; i < piso.length; i++) { celdasPiso += piso[i]; celdasMuro += muro[i]; }
+      info.celdasPiso = celdasPiso;
+      info.celdasMuro = celdasMuro;
+      info.trianguloMuros = nMuros;
+      info.trianguloPiso = nPiso;
+      info.pisoDetectado = pisoDetectado && celdasPiso >= 400;
+
+      var offsCache = {};
+      var offsets = function (r) {
+        var key = r.toFixed(3);
+        if (offsCache[key]) return offsCache[key];
+        var R = Math.ceil(r / CELDA), lista = [], a, b;
+        for (b = -R; b <= R; b++) for (a = -R; a <= R; a++) {
+          if ((a * CELDA) * (a * CELDA) + (b * CELDA) * (b * CELDA) <= r * r) lista.push(a, b);
+        }
+        offsCache[key] = lista;
+        return lista;
+      };
+      var cfg = { piso: true, muro: true, offs: offsets(0.45), alc: null };
+      var libreCelda = function (ix2, iz2) {
+        if (ix2 < 0 || iz2 < 0 || ix2 >= W || iz2 >= H) return false;
+        var k = iz2 * W + ix2;
+        if (cfg.muro && muro[k]) return false;
+        if (cfg.piso && !piso[k]) return false;
+        return true;
+      };
+      var cuerpoLibre = function (ix2, iz2) {
+        var of = cfg.offs;
+        for (var q = 0; q < of.length; q += 2) if (!libreCelda(ix2 + of[q], iz2 + of[q + 1])) return false;
+        return true;
+      };
+      var sx0 = Math.floor((ini.x - minX) / CELDA), sz0 = Math.floor((ini.z - minZ) / CELDA);
+      var cola = new Int32Array(W * H);
+      var inundar = function () {
+        var vis = new Uint8Array(W * H), cabeza = 0, cola2 = 0, cuenta = 0, toca = false;
+        if (!cuerpoLibre(sx0, sz0)) return { vis: vis, cuenta: 0, toca: false };
+        vis[sz0 * W + sx0] = 1; cola[cola2++] = sz0 * W + sx0;
+        while (cabeza < cola2) {
+          var c = cola[cabeza++], cxi = c % W, czi = (c - cxi) / W;
+          cuenta++;
+          if (cxi <= 1 || czi <= 1 || cxi >= W - 2 || czi >= H - 2) toca = true;
+          var vec = [cxi + 1, czi, cxi - 1, czi, cxi, czi + 1, cxi, czi - 1];
+          for (var d = 0; d < 8; d += 2) {
+            var nxi = vec[d], nzi = vec[d + 1];
+            if (nxi < 0 || nzi < 0 || nxi >= W || nzi >= H) continue;
+            var kn = nzi * W + nxi;
+            if (vis[kn]) continue;
+            if (!cuerpoLibre(nxi, nzi)) continue;
+            vis[kn] = 1; cola[cola2++] = kn;
+          }
+        }
+        return { vis: vis, cuenta: cuenta, toca: toca };
+      };
+
+      var combos = [];
+      if (info.pisoDetectado) combos.push({ piso: true, muro: true });
+      if (info.pisoDetectado) combos.push({ piso: true, muro: false });
+      combos.push({ piso: false, muro: true });
+      var radios = [0.45, 0.35, 0.25, 0.15];
+      var elegido = null;
+      for (var ci = 0; ci < combos.length && !elegido; ci++) {
+        for (var ri = 0; ri < radios.length && !elegido; ri++) {
+          cfg.piso = combos[ci].piso; cfg.muro = combos[ci].muro; cfg.offs = offsets(radios[ri]);
+          var res = inundar();
+          if (res.cuenta * CELDA * CELDA >= 15) {
+            elegido = { piso: cfg.piso, muro: cfg.muro, radio: radios[ri], res: res };
+          }
+        }
+      }
+      if (!elegido) {
+        return { activo: false, motivo: 'no se pudo ubicar una zona caminable desde el punto de inicio', info: info };
+      }
+      cfg.piso = elegido.piso; cfg.muro = elegido.muro; cfg.offs = offsets(elegido.radio);
+      cfg.alc = elegido.res.vis;
+      info.usaPiso = elegido.piso;
+      info.usaMuros = elegido.muro;
+      info.radio = elegido.radio;
+      info.areaCaminable = Math.round(elegido.res.cuenta * CELDA * CELDA);
+      info.zonaAbierta = elegido.res.toca;
+
+      var permitido = function (x, z) {
+        if (!esDentroDeLaGaleria(x, z)) return false;
+        var ix2 = Math.floor((x - minX) / CELDA), iz2 = Math.floor((z - minZ) / CELDA);
+        if (ix2 < 0 || iz2 < 0 || ix2 >= W || iz2 >= H) return false;
+        return cfg.alc[iz2 * W + ix2] === 1;
+      };
+
+      var mover = function (x0, z0, x1, z1) {
+        var dx = x1 - x0, dz = z1 - z0;
+        var dist = Math.sqrt(dx * dx + dz * dz);
+        var pasos = Math.max(1, Math.ceil(dist / (CELDA * 0.8)));
+        var sdx = dx / pasos, sdz = dz / pasos;
+        var x = x0, z = z0, choco = false;
+        for (var p = 0; p < pasos; p++) {
+          if (permitido(x + sdx, z + sdz)) { x += sdx; z += sdz; }
+          else if (sdx !== 0 && permitido(x + sdx, z)) { x += sdx; choco = true; }
+          else if (sdz !== 0 && permitido(x, z + sdz)) { z += sdz; choco = true; }
+          else { choco = true; }
+        }
+        return { x: x, z: z, choco: choco };
+      };
+
+      return { activo: true, permitido: permitido, mover: mover, info: info };
+    }
+
+    // SYSTEM: Se ejecuta en cada fotograma DESPUÉS de movement-controls y ANTES de que Three.js dibuje
+    AFRAME.registerSystem('colision-paredes', {
+      init: function () {
+        this.comp = null;
+      },
+      tick: function () {
+        if (this.comp) {
+          this.comp.corregir();
         }
       }
     });
 
-    AFRAME.registerComponent('cuadro-ganador', {
-      schema: {
-        titulo: { type: 'string', default: 'GANADORES DE LOS PRIMEROS LUGARES' },
-        nombre: { type: 'string', default: 'Artistas Galardonados' }
-      },
+    AFRAME.registerComponent('colision-paredes', {
       init: function () {
-        const el = this.el;
-        const data = this.data;
+        this.system.comp = this;
+        const p = this.el.object3D.position;
+        this.mapa = null;
+        this.listo = false;
+        this.inicio = { x: p.x, z: p.z };
+        this.prev = new THREE.Vector3().copy(p);
+        this.bueno = new THREE.Vector3().copy(p);
+        window.colisionEstado = 'esperando el modelo de la sala';
 
-        const canvas = document.createElement('canvas');
-        canvas.width = 720;
-        canvas.height = 1024;
-        const ctx = canvas.getContext('2d');
-
-        const fondo = ctx.createLinearGradient(0, 0, 720, 1024);
-        fondo.addColorStop(0, '#2e1845');
-        fondo.addColorStop(0.5, '#201230');
-        fondo.addColorStop(1, '#170c24');
-        ctx.fillStyle = fondo;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        ctx.strokeStyle = '#f59e0b';
-        ctx.lineWidth = 14;
-        ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
-
-        ctx.strokeStyle = '#fbbf24';
-        ctx.lineWidth = 4;
-        ctx.strokeRect(40, 40, canvas.width - 80, canvas.height - 80);
-
-        ctx.fillStyle = '#fbbf24';
-        ctx.font = "bold 44px sans-serif";
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText("★   ★   ★", canvas.width / 2, 130);
-
-        ctx.font = "bold 24px 'Poppins', sans-serif";
-        ctx.fillStyle = "#fef3c7";
-        ctx.fillText("RECONOCIMIENTO DE HONOR", canvas.width / 2, 210);
-
-        ctx.beginPath();
-        ctx.moveTo(120, 250);
-        ctx.lineTo(600, 250);
-        ctx.strokeStyle = '#f59e0b';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = "bold 30px 'Poppins', sans-serif";
-        ctx.fillText("GANADORES DE LOS", canvas.width / 2, 335);
-        ctx.font = "bold 34px 'Poppins', sans-serif";
-        ctx.fillText("PRIMEROS LUGARES", canvas.width / 2, 380);
-
-        ctx.font = "bold 105px sans-serif";
-        ctx.fillStyle = '#fbbf24';
-        ctx.fillText("★", canvas.width / 2, 510);
-
-        ctx.fillStyle = '#fef08a';
-        ctx.font = "bold 44px 'Poppins', sans-serif";
-        ctx.fillText(data.nombre, canvas.width / 2, 650);
-
-        ctx.fillStyle = '#e2e8f0';
-        ctx.font = "400 26px 'Poppins', sans-serif";
-        ctx.fillText("Galería Nebulosa", canvas.width / 2, 740);
-
-        ctx.fillStyle = '#fbbf24';
-        ctx.font = "bold 32px sans-serif";
-        ctx.fillText("✦   ★   ✦", canvas.width / 2, 880);
-
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.colorSpace = THREE.SRGBColorSpace;
-        const mesh = el.getObject3D('mesh');
-        if (mesh) {
-          mesh.material = new THREE.MeshBasicMaterial({ 
-            map: texture, 
-            side: THREE.FrontSide,
-            toneMapped: false,
-            polygonOffset: true,
-            polygonOffsetFactor: -1,
-            polygonOffsetUnits: -1
-          });
-          mesh.material.needsUpdate = true;
+        // Desactivar wasd-controls de la cámara hija para que el teclado solo mueva a #rig
+        this.camEl = this.el.querySelector('a-camera') || this.el.querySelector('[camera]');
+        if (this.camEl) {
+          this.camEl.setAttribute('wasd-controls', 'enabled: false');
         }
+      },
+
+      remove: function () {
+        if (this.system.comp === this) {
+          this.system.comp = null;
+        }
+      },
+
+      construir: function () {
+        const roomEl = document.querySelector('[gltf-model="#modelo-sala"]');
+        if (!roomEl) return false;
+        const raiz = roomEl.getObject3D('mesh');
+        if (!raiz) return false;
+
+        try {
+          raiz.updateMatrixWorld(true);
+          let total = 0;
+          const mallas = [];
+          raiz.traverse((nodo) => {
+            if (nodo.isMesh && nodo.visible !== false && nodo.geometry && nodo.geometry.attributes && nodo.geometry.attributes.position) {
+              mallas.push(nodo);
+              const g = nodo.geometry;
+              total += Math.floor((g.index ? g.index.count : g.attributes.position.count) / 3);
+            }
+          });
+
+          const tris = new Float32Array(total * 9);
+          const v = new THREE.Vector3();
+          let o = 0;
+          mallas.forEach((nodo) => {
+            const g = nodo.geometry, pos = g.attributes.position, idx = g.index, m = nodo.matrixWorld;
+            const cuenta = Math.floor((idx ? idx.count : pos.count) / 3) * 3;
+            for (let t = 0; t < cuenta; t++) {
+              const vi = idx ? idx.getX(t) : t;
+              v.fromBufferAttribute(pos, vi).applyMatrix4(m);
+              tris[o++] = v.x; tris[o++] = v.y; tris[o++] = v.z;
+            }
+          });
+
+          const ojoY = this.el.object3D.position.y || 2.05;
+          this.mapa = crearMapaColision(tris, { ojoY: ojoY, inicio: this.inicio });
+        } catch (err) {
+          console.warn('[Colisión] error al preparar las paredes:', err);
+          this.mapa = { activo: false, motivo: String(err) };
+        }
+
+        this.listo = true;
+        if (this.mapa.activo) {
+          window.colisionEstado = 'activa';
+          window.colisionInfo = this.mapa.info;
+          console.info('[Colisión] activa', this.mapa.info);
+        } else {
+          window.colisionEstado = 'desactivada: ' + this.mapa.motivo;
+          console.warn('[Colisión] desactivada:', this.mapa.motivo, this.mapa.info || '');
+        }
+        return true;
+      },
+
+      corregir: function () {
+        const p = this.el.object3D.position;
+
+        // Mantener la cámara interna fija en (0,0,0) del rig
+        if (this.camEl && this.camEl.object3D) {
+          this.camEl.object3D.position.set(0, 0, 0);
+        }
+
+        // Si está afuera en la nebulosa, no hay restricción
+        if (enLaNebulosa) {
+          this.prev.copy(p);
+          return;
+        }
+
+        // Si el modelo aún no carga, aplicar barrera perimetral de respaldo
+        if (!this.listo) {
+          this.construir();
+          if (!this.listo) {
+            p.y = 2.05;
+            if (!esDentroDeLaGaleria(p.x, this.prev.z)) p.x = this.prev.x;
+            if (!esDentroDeLaGaleria(p.x, p.z)) p.z = this.prev.z;
+            if (!esDentroDeLaGaleria(p.x, p.z)) { p.x = this.bueno.x; p.z = this.bueno.z; }
+            else { this.bueno.set(p.x, p.y, p.z); }
+            this.prev.copy(p);
+            return;
+          }
+        }
+
+        p.y = 2.05;
+
+        const dx = p.x - this.prev.x;
+        const dz = p.z - this.prev.z;
+        if (Math.abs(dx) < 0.000001 && Math.abs(dz) < 0.000001) return;
+
+        // Reubicación (volver de la nebulosa)
+        if (Math.sqrt(dx * dx + dz * dz) > 3.0) {
+          if (this.mapa && this.mapa.activo && this.mapa.permitido(p.x, p.z)) {
+            this.bueno.set(p.x, p.y, p.z);
+          } else if (esDentroDeLaGaleria(p.x, p.z)) {
+            this.bueno.set(p.x, p.y, p.z);
+          } else {
+            p.x = this.bueno.x;
+            p.z = this.bueno.z;
+          }
+          this.prev.copy(p);
+          return;
+        }
+
+        // Movimiento normal por teclado (WASD/flechas) o botones en pantalla
+        if (this.mapa && this.mapa.activo) {
+          const r = this.mapa.mover(this.prev.x, this.prev.z, p.x, p.z);
+          p.x = r.x;
+          p.z = r.z;
+
+          if (this.mapa.permitido(p.x, p.z)) {
+            this.bueno.set(p.x, p.y, p.z);
+          } else {
+            p.x = this.bueno.x;
+            p.z = this.bueno.z;
+          }
+        } else {
+          if (!esDentroDeLaGaleria(p.x, this.prev.z)) p.x = this.prev.x;
+          if (!esDentroDeLaGaleria(p.x, p.z)) p.z = this.prev.z;
+          if (!esDentroDeLaGaleria(p.x, p.z)) { p.x = this.bueno.x; p.z = this.bueno.z; }
+          else { this.bueno.set(p.x, p.y, p.z); }
+        }
+
+        this.prev.copy(p);
+      },
+
+      tick: function () {
+        this.corregir();
       }
     });
 
@@ -856,7 +1015,7 @@
     <button id="btn-toggle-nebulosa" onclick="alternarNebulosa()">🌌 Salir a la Nebulosa</button>
   </div>
 
-  <!-- ESCENA CON BÚFER LOGARÍTMICO PARA ELIMINAR PARPADEO DE SOMBRAS A LA DISTANCIA -->
+  <!-- ESCENA PÚBLICA -->
   <a-scene 
     video-handler
     cursor="rayOrigin: mouse;"
@@ -899,13 +1058,8 @@
     <a-plane id="rotulo-exterior" position="-18.13 2.20 -4.89" rotation="0 0 0" width="3.6" height="0.9" rotulo-poppins></a-plane>
 
 
-    <!-- ========================================================================================================= -->
-    <!--                                  INICIO: CONFIGURACIÓN DE OBRAS Y ENLACES                                 -->
-    <!-- ========================================================================================================= -->
-
-
     <!-- ========================================================================= -->
-    <!-- SECCIÓN: GRUPO 1 - PARED IZQUIERDA (Obras 1 al 3 + Cuadro de Honor)       -->
+    <!-- SECCIÓN: GRUPO 1 - PARED IZQUIERDA (Obras 1 al 3 + Cuadro de Honor)        -->
     <!-- ========================================================================= -->
 
     <!-- CUADRO DE HONOR -->
@@ -1020,7 +1174,7 @@
 
 
     <!-- ========================================================================= -->
-    <!-- SECCIÓN: GRUPO 4 - PARED LATERAL DERECHA (Obras 10 al 16)                -->
+    <!-- SECCIÓN: GRUPO 4 - PARED LATERAL DERECHA (Obras 10 al 16)                 -->
     <!-- ========================================================================= -->
 
     <!-- OBRA 10 -->
@@ -1152,7 +1306,6 @@
     <a-entity id="grupo-5-obra-22"
               obra-interactiva="titulo: Título de Obra 22; desc: Descripción del cuadro 22; link: https://galerianebulosa.com/obras-destacadas/"
               position="20.00 2.05 0.54" rotation="0 -90 0">
-      <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; rotate="0 -90 0">
       <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
       <a-plane position="0 0 0.052" width="2.35" height="1.65"
                lienzo-obra="titulo: OBRA 22; subtitulo: Grupo 5; src: https://galerianebulosa.com/wp-content/uploads/2026/10/El-juicio-del-dragon-azul-con-menos-resolucion.png;">
@@ -1170,7 +1323,7 @@
     </a-entity>
 
     <!-- OBRA 24 -->
-    <a-entity id="grupo-5-obra-24"
+    <a-entity id="grupo-24-obra-24"
               obra-interactiva="titulo: Título de Obra 24; desc: Descripción del cuadro 24; link: https://galerianebulosa.com/obras-destacadas/"
               position="20.00 2.05 6.14" rotation="0 -90 0">
       <a-box width="2.5" height="1.8" depth="0.08" color="#0e0c18" material="roughness: 0.3; metalness: 0.2"></a-box>
@@ -1572,7 +1725,6 @@
 
     <!-- ========================================================================= -->
     <!-- SECCIÓN: PANTALLA DE VIDEO DE PRESENTACIÓN (YouTube)                      -->
-    <!-- • Para cambiar el video: sustituye el ID 'GZRF6dSq7tk' por el tuyo        -->
     <!-- ========================================================================= -->
     <a-entity id="pantalla-video-presentacion"
               position="-19.66 2.02 -10.20" rotation="0 90 0">
@@ -1585,10 +1737,17 @@
 
 
     <!-- ========================================================================= -->
-    <!-- CÁMARA / PUNTO DE INICIO                                                  -->
+    <!-- CÁMARA CON FRENO ABSOLUTO EN ESCRITORIO Y CELULAR                         -->
     <!-- ========================================================================= -->
-    <a-entity id="rig" movement-controls="controls: keyboard; speed: 0.35; constrainToNavMesh: false;" position="-12.5 2.05 -10.0" rotation="0 90 0">
-      <a-camera position="0 0 0" look-controls="pointerLockEnabled: false; magicWindowTrackingEnabled: false; touchEnabled: true;"></a-camera>
+    <a-entity id="rig" 
+              colision-paredes
+              movement-controls="controls: keyboard; speed: 0.35; constrainToNavMesh: false;" 
+              position="-12.5 2.05 -10.0" 
+              rotation="0 90 0">
+      <a-camera position="0 0 0" 
+                wasd-controls="enabled: false;" 
+                look-controls="pointerLockEnabled: false; magicWindowTrackingEnabled: false; touchEnabled: true;">
+      </a-camera>
     </a-entity>
 
   </a-scene>
